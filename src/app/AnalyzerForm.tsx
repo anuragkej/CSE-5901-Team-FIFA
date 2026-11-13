@@ -11,13 +11,27 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import type { RankableAnalysis } from "@/domain/rank";
 import { analyzeAction, type AnalyzeState } from "./actions";
+import { LeaseChat } from "./LeaseChat";
+import { RecommendationList } from "./RecommendationList";
 import { Report } from "./Report";
+import { SaveAnalysisButton } from "./SaveAnalysisButton";
 
 export function AnalyzerForm({ samples }: { samples: SampleDocument[] }) {
   const [state, formAction, pending] = useActionState<AnalyzeState, FormData>(analyzeAction, null);
   const [text, setText] = useState(samples[0].text);
+  const [compared, setCompared] = useState<RankableAnalysis[]>([]);
+  const [seenKey, setSeenKey] = useState<string | null>(null);
   const selectedSample = samples.find((s) => s.text === text);
+  const current = state?.analysis;
+  const currentKey = current
+    ? `${current.terms.address ?? "unknown"}:${current.cost?.trueMonthlyCost ?? "none"}:${current.verdict.tone}`
+    : null;
+  if (current && currentKey && currentKey !== seenKey) {
+    setSeenKey(currentKey);
+    setCompared((items) => (items.some((item) => item.id === currentKey) ? items : [...items, { id: currentKey, analysis: current }]));
+  }
 
   return (
     <>
@@ -97,7 +111,14 @@ export function AnalyzerForm({ samples }: { samples: SampleDocument[] }) {
           </Alert>
         )}
       </form>
-      {state?.analysis && <Report analysis={state.analysis} />}
+      {current && (
+        <>
+          <Report analysis={current} />
+          <SaveAnalysisButton analysis={current} />
+          <RecommendationList items={compared} />
+          <LeaseChat analysis={current} />
+        </>
+      )}
     </>
   );
 }
