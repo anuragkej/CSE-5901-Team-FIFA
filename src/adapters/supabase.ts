@@ -2,6 +2,15 @@ import { createServerClient, type CookieMethodsServer } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAuth, type Auth, type AuthClient } from "@/domain/auth";
+import {
+  isAnalysis,
+  memoryAnalysisStore,
+  persistedAnalysis,
+  type AnalysisStorage,
+  type AnalysisStore,
+  type SavedAnalysisRecord,
+} from "@/domain/savedAnalyses";
+import type { Analysis } from "@/domain/types";
 
 const URL_NAME = "NEXT_PUBLIC_SUPABASE_URL";
 const KEY_NAME = "NEXT_PUBLIC_SUPABASE_ANON_KEY";
@@ -12,19 +21,21 @@ type SupabaseEnv =
   | { kind: "missing"; names: readonly string[] };
 
 export async function requestAuth(): Promise<Auth> {
+  return createAuth(supabaseAuthClient(await requestCookieMethods()));
+}
+
+async function requestCookieMethods(): Promise<CookieMethodsServer> {
   const jar = await cookies();
-  return createAuth(
-    supabaseAuthClient({
-      getAll: () => jar.getAll(),
-      setAll(toSet) {
-        try {
-          for (const { name, value, options } of toSet) jar.set(name, value, options);
-        } catch {
-          // Server Components cannot write cookies. refreshSession already rotated them.
-        }
-      },
-    }),
-  );
+  return {
+    getAll: () => jar.getAll(),
+    setAll(toSet) {
+      try {
+        for (const { name, value, options } of toSet) jar.set(name, value, options);
+      } catch {
+        // Server Components cannot write cookies. refreshSession already rotated them.
+      }
+    },
+  };
 }
 
 export async function refreshSession(request: NextRequest): Promise<NextResponse> {
@@ -111,4 +122,104 @@ function supabaseAuthClient(cookieMethods: CookieMethodsServer): AuthClient {
       return unreachable;
     }
   }
+}
+
+interface SavedAnalysisRow {
+  id: string;
+  created_at: string;
+  analysis: unknown;
+}
+
+interface SavedAnalysisTable {
+  insert(values: { user_id: string; analysis: Analysis }): {
+    select(columns: "id, created_at, analysis"): {
+      single(): Promise<{ data: SavedAnalysisRow | null; error: { message: string } | null }>;
+    };
+  };
+  select(columns: "id, created_at, analysis"): {
+    eq(column: "user_id", value: string): {
+      order(
+        column: "created_at",
+        options: { ascending: boolean },
+      ): Promise<{ data: SavedAnalysisRow[] | null; error: { message: string } | null }>;
+    };
+  };
+}
+
+const processMemory = memoryAnalysisStore();
+
+export async function saveSignedInAnalysis(
+  userId: string,
+  analysis: Analysis,
+): Promise<{ record: SavedAnalysisRecord; storage: AnalysisStorage }> {
+  const snapshot = persistedAnalysis(analysis);
+  const remote = await remoteStore();
+  if (remote) {
+    try {
+      return { record: await remote.save(userId, snapshot), storage: "supabase" };
+    } catch {
+      // The table may be missing, or the request failed. The UI still has a place to keep the row.
+    }
+  }
+  return { record: await processMemory.save(userId, snapshot), storage: "memory" };
+}
+
+export async function listSignedInAnalyses(
+  userId: string,
+): Promise<{ records: SavedAnalysisRecord[]; storage: AnalysisStorage }> {
+  const remote = await remoteStore();
+  if (remote) {
+    try {
+      return { records: await remote.list(userId), storage: "supabase" };
+    } catch {
+      // Same fallback as save. A student still sees rows kept in this process.
+    }
+  }
+  return { records: await processMemory.list(userId), storage: "memory" };
+}
+
+async function remoteStore(): Promise<AnalysisStore | null> {
+  const parsed = env();
+  switch (parsed.kind) {
+    case "missing":
+      return null;
+    case "configured":
+      return supabaseAnalysisStore(
+        createServerClient(parsed.url, parsed.anonKey, {
+          cookies: await requestCookieMethods(),
+          global: { fetch: fetchWithTimeout },
+        }) as unknown as { from(name: "saved_analyses"): SavedAnalysisTable },
+      );
+    default: {
+      const unreachable: never = parsed;
+      return unreachable;
+    }
+  }
+}
+
+function supabaseAnalysisStore(client: { from(name: "saved_analyses"): SavedAnalysisTable }): AnalysisStore {
+  const table = client.from("saved_analyses");
+  return {
+    async save(userId, analysis) {
+      const snapshot = persistedAnalysis(analysis);
+      const { data, error } = await table
+        .insert({ user_id: userId, analysis: snapshot })
+        .select("id, created_at, analysis")
+        .single();
+      if (error || !data) throw new Error(error?.message ?? "save failed");
+      const stored = isAnalysis(data.analysis) ? persistedAnalysis(data.analysis) : snapshot;
+      return { id: data.id, userId, createdAt: data.created_at, analysis: stored };
+    },
+    async list(userId) {
+      const { data, error } = await table
+        .select("id, created_at, analysis")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      if (error || !data) throw new Error(error?.message ?? "list failed");
+      return data.flatMap((row) => {
+        if (!isAnalysis(row.analysis)) return [];
+        return [{ id: row.id, userId, createdAt: row.created_at, analysis: persistedAnalysis(row.analysis) }];
+      });
+    },
+  };
 }
