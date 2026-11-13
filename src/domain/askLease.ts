@@ -38,7 +38,8 @@ export type WinnerSentence =
   | { kind: "sentence"; text: string }
   | { kind: "refusal"; reason: "not_in_analysis" }
   | { kind: "key_missing" }
-  | { kind: "none" };
+  | { kind: "none" }
+  | { kind: "unavailable" };
 
 /** Rank first. The model may describe only the winner the ranker already chose. */
 export async function explainWinner(input: {
