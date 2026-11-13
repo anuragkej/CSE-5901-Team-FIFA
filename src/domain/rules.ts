@@ -36,7 +36,8 @@ function lateFeeShare(excerpt: string, rent: Cents): number | null {
   const shares: number[] = [];
   const percent = excerpt.match(/(\d+(?:\.\d+)?)\s*(?:%|percent\b)/i);
   if (percent) shares.push(Number(percent[1]) / 100);
-  const amount = excerpt.match(/\$\s?([\d,]+(?:\.\d{1,2})?)/);
+  // The amount after "late fee", not the first dollar figure: "If rent of $1,200 is late, a late fee of $50" is $50.
+  const amount = excerpt.match(/late\s+(?:fee|charge)\b[^$\n]{0,80}?\$\s?([\d,]+(?:\.\d{1,2})?)/i);
   if (amount && rent > 0) shares.push((Number(amount[1].replace(/,/g, "")) * 100) / rent);
   if (shares.length === 0) return null;
   return Math.max(...shares);

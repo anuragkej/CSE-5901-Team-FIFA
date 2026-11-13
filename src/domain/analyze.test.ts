@@ -112,3 +112,31 @@ describe("analyze: pasted listing", () => {
     expect(studio.terms.bedrooms).toBe(0);
   });
 });
+
+describe("analyze: extraction edge cases", () => {
+  it("does not take a deposit sized in months as the lease term", async () => {
+    const result = await analyze(
+      { text: "Monthly rent is $1,000. Security deposit equal to 2 months' rent, $2,000. Lease term is 12 months. Admin fee $240." },
+      ports,
+    );
+    expect(result.terms.leaseTermMonths).toBe(12);
+    expect(result.cost?.trueMonthlyCost).toBe(102000);
+  });
+
+  it("prices the late fee, not the rent mentioned in the same sentence", async () => {
+    const result = await analyze(
+      { text: "Monthly rent is $1,200 for 12 months. If rent of $1,200 is not paid by the 5th, a late fee of $50 applies." },
+      ports,
+    );
+    expect(result.flags.map((f) => f.code)).not.toContain("HIGH_LATE_FEE");
+  });
+
+  it("counts a non-refundable security deposit once, as a fee", async () => {
+    const result = await analyze(
+      { text: "Monthly rent is $1,000 for 12 months. A non-refundable security deposit of $500 is due at signing." },
+      ports,
+    );
+    expect(result.terms.securityDeposit).toBeNull();
+    expect(result.cost?.moveInCash).toBe(150000);
+  });
+});

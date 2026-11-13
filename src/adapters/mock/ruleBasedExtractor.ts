@@ -12,8 +12,10 @@ import type {
 
 const MONEY = /\$\s?([\d,]+(?:\.\d{1,2})?)/;
 
-const DEPOSIT = /security\s+deposit[^$\n]{0,40}?\$\s?([\d,]+(?:\.\d{2})?)/i;
-const TERM = /(\d{1,2})\s*-?\s*month/i;
+// A non-refundable "security deposit" is a fee; extractFees counts it, so it must not also count as the deposit.
+const DEPOSIT = /(?<!non-?refundable\s)security\s+deposit[^$\n]{0,40}?\$\s?([\d,]+(?:\.\d{2})?)/i;
+// Skips "2 months' rent" and "one month's rent", which size a deposit rather than the lease.
+const TERM = /(\d{1,2})\s*-?\s*months?\b(?!'?s?'?\s+rent)/i;
 const BEDROOMS = /(\d)\s*-?\s*(?:bed(?:room)?s?|br)\b/i;
 const STUDIO = /\b(?:studios?|efficienc(?:y|ies))\b/i;
 /** Under $100 is a bedroom count or a fee, not Columbus rent. */
