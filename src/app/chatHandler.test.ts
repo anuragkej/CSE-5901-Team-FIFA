@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { LeaseReplyModel, WinnerSentenceModel } from "@/domain/askLease";
 import type { Analysis } from "@/domain/types";
-import { handleChatRequest, handleRecommendRequest, questionFromChatBody } from "./chatHandler";
+import { chatErrorLine, handleChatRequest, handleRecommendRequest, questionFromChatBody } from "./chatHandler";
 
 const LEASE = "FULL_PASTED_LEASE_SHOULD_NOT_BE_SENT";
 
@@ -96,6 +96,35 @@ describe("handleChatRequest", () => {
     }));
     const result = await handleChatRequest({ question: "any other fees?", analysis }, { hasApiKey: true, model });
     expect(result).toEqual({ kind: "refusal", reason: "not_in_analysis" });
+  });
+
+  it("logs the status and error code when the model throws, and not the key or body", async () => {
+    const secret = "sk-live-secret-should-not-be-logged";
+    const error = {
+      name: "APICallError",
+      statusCode: 429,
+      responseHeaders: { authorization: `Bearer ${secret}` },
+      responseBody: JSON.stringify({
+        error: { message: `bad key ${secret}`, code: "billing_not_active" },
+      }),
+      cause: { code: secret },
+    };
+    const line = chatErrorLine(error);
+    expect(line).toBe("chat model error status=429 code=billing_not_active");
+    expect(line).not.toContain(secret);
+    expect(line).not.toContain("bad key");
+
+    const model = replyModel(async () => {
+      throw error;
+    });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = await handleChatRequest(
+      { question: "What is the real monthly cost?", analysis },
+      { hasApiKey: true, model },
+    );
+    expect(result).toEqual({ kind: "unavailable" });
+    expect(spy).toHaveBeenCalledWith(line);
+    spy.mockRestore();
   });
 
   it("rejects a body that is not a question about an analysis", async () => {
