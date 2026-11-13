@@ -4,7 +4,6 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { IBM_Plex_Mono, Newsreader, Source_Sans_3 } from "next/font/google";
 import { cn } from "@/lib/utils";
-import { SiteHeader } from "./SiteHeader";
 
 const sourceSans = Source_Sans_3({
   subsets: ["latin"],
@@ -34,7 +33,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={cn("font-sans", sourceSans.variable, newsreader.variable, plexMono.variable)}
     >
       <body>
-        <SiteHeader />
         {children}
         <Analytics />
       </body>

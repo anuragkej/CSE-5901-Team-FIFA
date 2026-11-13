@@ -42,9 +42,20 @@ export type SignInOutcome =
 
 export type ConfirmationNotice = "email_confirmed" | "link_invalid";
 
+export type PasswordResetOutcome =
+  | { kind: "reset_sent"; email: Email }
+  | { kind: "invalid"; errors: { email: EmailProblem } }
+  | RateLimited
+  | Unavailable;
+
+/** Where a signed-in student lands. */
+export const SIGNED_IN_PATH = "/dashboard";
+export const LOGIN_PATH = "/login";
+
 export interface Auth {
   signUp(form: FormData, confirmUrl: URL): Promise<SignUpOutcome>;
   signIn(form: FormData): Promise<SignInOutcome>;
+  requestPasswordReset(form: FormData, redirectTo: URL): Promise<PasswordResetOutcome>;
   signOut(): Promise<void>;
   session(): Promise<Session | null>;
 }
@@ -56,6 +67,10 @@ export interface AuthClient {
     options: { emailRedirectTo: string };
   }): Promise<AuthResult>;
   signInWithPassword(credentials: { email: string; password: string }): Promise<AuthResult>;
+  resetPasswordForEmail(
+    email: string,
+    options: { redirectTo: string },
+  ): Promise<{ data: object | null; error: AuthFailure | null }>;
   signOut(options: { scope: "local" }): Promise<{ error: AuthFailure | null }>;
   getClaims(): Promise<ClaimsResult>;
 }
@@ -117,6 +132,17 @@ export function createAuth(client: AuthClient): Auth {
         return { kind: "unavailable", cause: thrownCause(error) };
       }
     },
+    async requestPasswordReset(form, redirectTo) {
+      const emailParsed = parseEmail(fieldText(form, "email"));
+      if (!emailParsed.ok) return { kind: "invalid", errors: { email: emailParsed.problem } };
+      try {
+        const result = await client.resetPasswordForEmail(emailParsed.email, { redirectTo: redirectTo.href });
+        if (result.error) return decodeResetError(result.error);
+        return { kind: "reset_sent", email: emailParsed.email };
+      } catch (error) {
+        return { kind: "unavailable", cause: thrownCause(error) };
+      }
+    },
     async signOut() {
       await client.signOut({ scope: "local" });
     },
@@ -128,6 +154,17 @@ export function createAuth(client: AuthClient): Auth {
       }
     },
   };
+}
+
+export function destinationAfterVerify(session: Session | null): typeof SIGNED_IN_PATH | typeof LOGIN_PATH {
+  if (session) return SIGNED_IN_PATH;
+  return LOGIN_PATH;
+}
+
+export function displayEmail(raw: string | undefined): Email | null {
+  if (!raw) return null;
+  const parsed = parseEmail(raw);
+  return parsed.ok ? parsed.email : null;
 }
 
 export function confirmationNotice(
@@ -237,6 +274,22 @@ function decodeSignUpError(error: AuthFailure, email: Email): SignUpOutcome {
     return { kind: "email_taken", email };
   }
   return { kind: "unavailable", cause: failureCause(error) };
+}
+
+function decodeResetError(error: AuthFailure): PasswordResetOutcome {
+  const shared = sharedFailure(error);
+  if (!shared) return { kind: "unavailable", cause: failureCause(error) };
+  switch (shared.kind) {
+    case "rate_limited":
+      return shared;
+    case "invalid":
+      if (shared.errors.email) return { kind: "invalid", errors: { email: shared.errors.email } };
+      return { kind: "unavailable", cause: failureCause(error) };
+    default: {
+      const unhandled: never = shared;
+      return unhandled;
+    }
+  }
 }
 
 function decodeSignInError(error: AuthFailure, email: Email): SignInOutcome {

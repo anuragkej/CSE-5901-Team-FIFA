@@ -1,5 +1,5 @@
 import { sampleDocuments } from "@/adapters/mock/sampleDocuments";
-import { AnalyzerForm } from "./AnalyzerForm";
+import { AnalyzerForm } from "../AnalyzerForm";
 
 export default function Home() {
   return (
