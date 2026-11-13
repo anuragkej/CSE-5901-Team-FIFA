@@ -17,7 +17,15 @@ function flag(code: string, severity: Flag["severity"], title: string): Flag {
 }
 
 describe("deriveVerdict", () => {
-  it("is incomplete without rent, regardless of flags", () => {
+  it("stops instead of asking for more when a danger flag fired without rent", () => {
+    const result = deriveVerdict(
+      [flag("P2P_PAYMENT_REQUEST", "danger", "Payment requested via Zelle"), flag("RENT_NOT_FOUND", "info", "Could not find a monthly rent amount")],
+      null,
+    );
+    expect(result).toEqual({ tone: "stop", headline: "Do not pay anything yet", summary: "Payment requested via Zelle." });
+  });
+
+  it("is incomplete without rent when nothing is dangerous", () => {
     expect(deriveVerdict([flag("RENT_NOT_FOUND", "info", "Could not find a monthly rent amount")], null)).toEqual({
       tone: "incomplete",
       headline: "We need more of the document",

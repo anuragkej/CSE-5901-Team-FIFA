@@ -58,7 +58,7 @@ function Breakdown({ cost }: { cost: CostBreakdown }) {
   );
 }
 
-export function CostCard({ cost, fallback }: { cost: CostBreakdown | null; fallback: string }) {
+export function CostCard({ cost }: { cost: CostBreakdown | null }) {
   return (
     <Card>
       <CardHeader>
@@ -73,7 +73,7 @@ export function CostCard({ cost, fallback }: { cost: CostBreakdown | null; fallb
                 <SearchX />
               </EmptyMedia>
               <EmptyTitle>No rent found</EmptyTitle>
-              <EmptyDescription>{fallback}</EmptyDescription>
+              <EmptyDescription>Cost and market checks were skipped. Paste the section of the lease that states the rent.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (

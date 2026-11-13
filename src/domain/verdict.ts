@@ -11,8 +11,9 @@ const HEADLINES: Record<VerdictTone, string> = {
 };
 
 function toneFor(flags: Flag[], cost: CostBreakdown | null): VerdictTone {
-  if (cost === null) return "incomplete";
+  // A scam listing often omits the rent; a danger flag must not be hidden behind "incomplete".
   if (flags.some((f) => f.severity === "danger")) return "stop";
+  if (cost === null) return "incomplete";
   if (flags.some((f) => f.severity === "warning")) return "caution";
   return "clear";
 }

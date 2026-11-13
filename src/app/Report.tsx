@@ -212,7 +212,7 @@ export function Report({ analysis }: { analysis: Analysis }) {
   return (
     <section className="flex flex-col gap-6" aria-live="polite">
       <VerdictAlert verdict={verdict} />
-      <CostCard cost={cost} fallback={verdict.summary} />
+      <CostCard cost={cost} />
       <FlagsCard flags={flags} />
       <QuestionsCard questions={questions} />
       <Accordion multiple defaultValue={["terms"]}>

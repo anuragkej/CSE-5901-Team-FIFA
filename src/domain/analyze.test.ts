@@ -68,6 +68,18 @@ describe("analyze: suspicious sublease", () => {
   });
 });
 
+describe("analyze: scam listing without rent", () => {
+  it("says stop, not incomplete", async () => {
+    const result = await analyze(
+      { text: "Nice 2 bedroom near campus, available now! Send the $800 holding payment by Zelle today to reserve it." },
+      ports,
+    );
+    expect(result.cost).toBeNull();
+    expect(result.verdict.tone).toBe("stop");
+    expect(result.verdict.headline).toBe("Do not pay anything yet");
+  });
+});
+
 describe("analyze: pasted listing", () => {
   it("works without a lease and surfaces high fee load", async () => {
     const result = await analyze({ text: doc("pasted-listing") }, ports);
