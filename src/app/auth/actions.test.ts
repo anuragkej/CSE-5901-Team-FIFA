@@ -119,7 +119,7 @@ describe("continueAfterVerifyAction", () => {
       email: "jose@osu.edu",
     });
 
-    await expect(continueAfterVerifyAction()).rejects.toThrow("REDIRECT:/");
+    await expect(continueAfterVerifyAction()).rejects.toThrow("REDIRECT:/dashboard");
     expect(auth.signIn).not.toHaveBeenCalled();
   });
 });

@@ -141,7 +141,7 @@ export function AuthForm(props: Props) {
       {props.mode === "sign_in" && (
         <>
           <div className="h-px bg-border" />
-          <Button variant="outline" className="h-11 w-full bg-white" nativeButton={false} render={<Link href="/" />}>
+          <Button variant="outline" className="h-11 w-full bg-white" nativeButton={false} render={<Link href="/analyze/paste" />}>
             Explore with a sample lease
           </Button>
           <p className="text-sm text-muted-foreground">The analyzer works without an account.</p>

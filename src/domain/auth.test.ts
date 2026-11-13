@@ -270,7 +270,7 @@ describe("destinationAfterVerify", () => {
   });
 
   it("continues a student who already has a session", () => {
-    expect(destinationAfterVerify(JOSE_SESSION)).toBe("/");
+    expect(destinationAfterVerify(JOSE_SESSION)).toBe("/dashboard");
   });
 });
 

@@ -48,8 +48,8 @@ export type PasswordResetOutcome =
   | RateLimited
   | Unavailable;
 
-/** Where a signed-in student lands. Later screens replace the home analyzer with the dashboard. */
-export const SIGNED_IN_PATH = "/";
+/** Where a signed-in student lands. */
+export const SIGNED_IN_PATH = "/dashboard";
 export const LOGIN_PATH = "/login";
 
 export interface Auth {

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { requestAuth } from "@/adapters/supabase";
 import {
   destinationAfterVerify,
+  LOGIN_PATH,
   SIGNED_IN_PATH,
   type PasswordResetOutcome,
   type SignInOutcome,
@@ -47,7 +48,7 @@ export async function continueAfterVerifyAction(): Promise<void> {
 
 export async function signOutAction(): Promise<void> {
   await (await requestAuth()).signOut();
-  redirect(SIGNED_IN_PATH);
+  redirect(LOGIN_PATH);
 }
 
 async function pageUrl(path: string): Promise<URL> {

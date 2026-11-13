@@ -32,6 +32,8 @@
     --color-success: var(--success);
     --color-success-foreground: var(--success-foreground);
     --color-success-tint: var(--success-tint);
+    --color-rose: var(--rose);
+    --color-tint: var(--tint);
     --color-accent-foreground: var(--accent-foreground);
     --color-accent: var(--accent);
     --color-muted-foreground: var(--muted-foreground);
@@ -78,6 +80,8 @@
     --success: #1b5c38;
     --success-foreground: #ffffff;
     --success-tint: #e8f1e8;
+    --rose: #f6e4e2;
+    --tint: #efeae2;
     --border: #ddd6cb;
     --input: #ddd6cb;
     --ring: #7c1f24;
