@@ -43,10 +43,30 @@ export async function handleRecommendRequest(
   }
 }
 
+export function questionFromChatBody(body: unknown): { question: string; analysis: unknown } | null {
+  const record = objectRecord(body);
+  if (!record) return null;
+  if (typeof record.question === "string") return { question: record.question, analysis: record.analysis };
+  if (!Array.isArray(record.messages)) return null;
+  let question = "";
+  for (const message of record.messages) {
+    const row = objectRecord(message);
+    if (!row || row.role !== "user" || !Array.isArray(row.parts)) continue;
+    const text = row.parts
+      .map((part) => {
+        const item = objectRecord(part);
+        return item && item.type === "text" && typeof item.text === "string" ? item.text : "";
+      })
+      .join("");
+    if (text.length > 0) question = text;
+  }
+  return { question, analysis: record.analysis };
+}
+
 function parseChatBody(value: unknown): { question: string; analysis: Analysis } | null {
-  const record = objectRecord(value);
-  if (!record || typeof record.question !== "string" || !isAnalysis(record.analysis)) return null;
-  return { question: record.question, analysis: persistedAnalysis(record.analysis) };
+  const request = questionFromChatBody(value);
+  if (!request || !isAnalysis(request.analysis)) return null;
+  return { question: request.question, analysis: persistedAnalysis(request.analysis) };
 }
 
 function parseRecommendBody(value: unknown): RankableAnalysis[] | null {

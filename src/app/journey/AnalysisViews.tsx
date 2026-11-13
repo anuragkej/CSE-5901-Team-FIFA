@@ -5,6 +5,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { Analysis } from "@/domain/types";
 import { money, signedPercent } from "@/app/format";
+import { LeaseChat } from "@/app/LeaseChat";
+import { RecommendationList } from "@/app/RecommendationList";
+import { SaveAnalysisButton } from "@/app/SaveAnalysisButton";
+import { listAnalysesAction } from "@/app/savedAnalysisActions";
+import type { RankableAnalysis } from "@/domain/rank";
 import { browserAnalysisStore, dangerFlags, loadAnalysis } from "./analysisStore";
 
 const LINKS = [
@@ -79,8 +84,39 @@ export function OverviewBody({ analysis }: { analysis: Analysis }) {
       <Button nativeButton={false} render={<Link href="/analysis/scam" />}>
         {dangerFlags(analysis).length === 0 ? "No scam warning in this text" : "Read the scam warning →"}
       </Button>
+      <SaveAnalysisButton analysis={analysis} />
+      <SavedRecommendation analysis={analysis} />
+      <LeaseChat analysis={analysis} />
     </div>
   );
+}
+
+function SavedRecommendation({ analysis }: { analysis: Analysis }) {
+  const [items, setItems] = useState<RankableAnalysis[]>([{ id: "current", analysis }]);
+
+  useEffect(() => {
+    let cancel = false;
+    void listAnalysesAction().then((result) => {
+      if (cancel || result.kind !== "list") return;
+      const saved = result.records.map((record) => ({ id: record.id, analysis: record.analysis }));
+      setItems(uniqueAnalyses([{ id: "current", analysis }, ...saved]));
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [analysis]);
+
+  return <RecommendationList items={items} />;
+}
+
+function uniqueAnalyses(items: RankableAnalysis[]): RankableAnalysis[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.analysis.terms.address ?? ""}:${item.analysis.cost?.trueMonthlyCost ?? "none"}:${item.analysis.verdict.tone}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function Fact({ label, value, note, href }: { label: string; value: string; note: string; href: string }) {

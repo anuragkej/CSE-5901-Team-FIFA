@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { LeaseReplyModel, WinnerSentenceModel } from "@/domain/askLease";
 import type { Analysis } from "@/domain/types";
-import { handleChatRequest, handleRecommendRequest } from "./chatHandler";
+import { handleChatRequest, handleRecommendRequest, questionFromChatBody } from "./chatHandler";
 
 const LEASE = "FULL_PASTED_LEASE_SHOULD_NOT_BE_SENT";
 
@@ -102,6 +102,20 @@ describe("handleChatRequest", () => {
     const model = replyModel(async () => ({ kind: "refusal", reason: "off_topic" }));
     expect(await handleChatRequest({ question: "hi" }, { hasApiKey: true, model })).toEqual({ kind: "invalid" });
     expect(model.complete).not.toHaveBeenCalled();
+  });
+});
+
+describe("questionFromChatBody", () => {
+  it("reads the latest user text from a chat transcript", () => {
+    const body = questionFromChatBody({
+      analysis,
+      messages: [
+        { role: "user", parts: [{ type: "text", text: "What is the real monthly cost?" }] },
+        { role: "assistant", parts: [{ type: "text", text: "later" }] },
+      ],
+    });
+    expect(body?.question).toBe("What is the real monthly cost?");
+    expect(body?.analysis).toBe(analysis);
   });
 });
 
