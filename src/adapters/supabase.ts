@@ -91,6 +91,7 @@ const notConfigured = {
 const offlineClient: AuthClient = {
   signUp: async () => notConfigured,
   signInWithPassword: async () => notConfigured,
+  resetPasswordForEmail: async () => notConfigured,
   signOut: async () => ({ error: null }),
   getClaims: async () => ({ data: null, error: null }),
 };

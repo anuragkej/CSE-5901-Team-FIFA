@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { createAuth, type AuthClient, type AuthResult, type AuthUser } from "./auth";
+import {
+  createAuth,
+  destinationAfterVerify,
+  displayEmail,
+  type AuthClient,
+  type AuthResult,
+  type AuthUser,
+  type Session,
+} from "./auth";
 
 const CONFIRM_URL = new URL("http://localhost:3000/login");
 
@@ -58,6 +66,7 @@ function stub(methods: Partial<AuthClient>): AuthClient {
   return {
     signUp: methods.signUp ?? unexpected("signUp"),
     signInWithPassword: methods.signInWithPassword ?? unexpected("signInWithPassword"),
+    resetPasswordForEmail: methods.resetPasswordForEmail ?? unexpected("resetPasswordForEmail"),
     signOut: methods.signOut ?? unexpected("signOut"),
     getClaims: methods.getClaims ?? unexpected("getClaims"),
   };
@@ -195,5 +204,80 @@ describe("session", () => {
       email: "jose@osu.edu",
     });
     expect(await down.session()).toBeNull();
+  });
+});
+
+const RESET_URL = new URL("http://localhost:3000/reset-password");
+const JOSE_SESSION: Session = {
+  userId: "6f1c2a9e-3b4d-4e5f-8a7b-9c0d1e2f3a4b" as Session["userId"],
+  email: "jose@osu.edu" as Session["email"],
+};
+
+describe("requestPasswordReset", () => {
+  it("does not ask Supabase to send mail when the address is blank or malformed", async () => {
+    const auth = createAuth(stub({}));
+
+    expect(await auth.requestPasswordReset(form({ email: "   " }), RESET_URL)).toEqual({
+      kind: "invalid",
+      errors: { email: "missing" },
+    });
+    expect(await auth.requestPasswordReset(form({ email: "not-an-email" }), RESET_URL)).toEqual({
+      kind: "invalid",
+      errors: { email: "malformed" },
+    });
+  });
+
+  it("sends a reset only for the address the student submitted", async () => {
+    const sent: unknown[] = [];
+    const auth = createAuth(
+      stub({
+        resetPasswordForEmail: async (email, options) => {
+          sent.push({ email, options });
+          return { data: {}, error: null };
+        },
+      }),
+    );
+
+    expect(await auth.requestPasswordReset(form({ email: "  Jose@OSU.edu " }), RESET_URL)).toEqual({
+      kind: "reset_sent",
+      email: "jose@osu.edu",
+    });
+    expect(sent).toEqual([
+      { email: "jose@osu.edu", options: { redirectTo: "http://localhost:3000/reset-password" } },
+    ]);
+  });
+
+  it("reports accounts unavailable when Supabase is not configured, without throwing", async () => {
+    const auth = createAuth(
+      stub({
+        resetPasswordForEmail: async () => ({
+          data: null,
+          error: { name: "AuthConfigError", message: "Supabase env is not set", code: "not_configured" },
+        }),
+      }),
+    );
+
+    expect(await auth.requestPasswordReset(form({ email: "jose@osu.edu" }), RESET_URL)).toEqual({
+      kind: "unavailable",
+      cause: "not_configured",
+    });
+  });
+});
+
+describe("destinationAfterVerify", () => {
+  it("sends a student who is not signed in to log in", () => {
+    expect(destinationAfterVerify(null)).toBe("/login");
+  });
+
+  it("continues a student who already has a session", () => {
+    expect(destinationAfterVerify(JOSE_SESSION)).toBe("/");
+  });
+});
+
+describe("displayEmail", () => {
+  it("shows the normalized address and hides a value that is not an email", () => {
+    expect(displayEmail("  Jose@OSU.edu ")).toBe("jose@osu.edu");
+    expect(displayEmail("not-an-email")).toBeNull();
+    expect(displayEmail(undefined)).toBeNull();
   });
 });
