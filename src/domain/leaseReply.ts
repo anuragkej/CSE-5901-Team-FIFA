@@ -28,9 +28,9 @@ export type ChatResult = LeaseReply | { kind: "key_missing" };
 export const leaseReplySchema = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("answer"),
-    topic: z.enum(TOPICS),
-    answer: z.string(),
-    citations: z.array(z.enum(CITATION_FIELDS)),
+    topic: z.enum(TOPICS).describe("fees, deposit, clauses, scams, market, or verdict"),
+    answer: z.string().describe("Short answer. Any dollar amount must equal a cent figure in the analysis."),
+    citations: z.array(z.enum(CITATION_FIELDS)).describe("Field names from the analysis."),
   }),
   z.object({
     kind: z.literal("refusal"),
